@@ -1,0 +1,101 @@
+services:
+  # The Nginx service to serve your Laravel project.
+  nginx:
+    image: nginx:alpine
+    container_name: laragon-multi-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./ees:/var/www/html/ees
+      # - ./emms:/var/www/html/emms
+      # - ./eems:/var/www/html/eems
+      # Map the Nginx configuration files
+      - ./nginx/sites-enabled:/etc/nginx/conf.d
+    depends_on:
+      - ees-php
+      # - emms-php
+      # - eems-php
+    networks:
+      - laravel_network
+
+  # PHP-FPM service for the 'ees' project.
+  ees-php:
+    build:
+      context: .
+      dockerfile: Dockerfile.php
+    container_name: ees-php
+    volumes:
+      - ./ees:/var/www/html/ees
+    networks:
+      - laravel_network
+
+  # PHP-FPM service for the 'emms' project.
+  # emms-php:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.php
+  #   container_name: emms-php
+  #   volumes:
+  #     - ./emms:/var/www/html/emms
+  #   networks:
+  #     - laravel_network
+  
+  # # PHP-FPM service for the 'eems' project.
+  # eems-php:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.php
+  #   container_name: eems-php
+  #   volumes:
+  #     - ./eems:/var/www/html/eems
+  #   networks:
+  #     - laravel_network
+
+  # The PostgreSQL database service.
+  postgres:
+    image:  postgis/postgis:15-master #wodby/postgres:$POSTGRES_TAG
+    container_name: laragon-postgres
+    command: ["postgres", "-c", "log_statement=all", "-c", "log_destination=stderr"]
+    restart: always
+    environment:
+      POSTGRES_USER: ees
+      POSTGRES_PASSWORD: root
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+      # - ./postgres-init:/docker-entrypoint-initdb.d # Place init file(s) here.
+    networks:
+      - laravel_network
+    ports:
+      - "5432:5432"
+
+  # The Redis service for caching and queues.
+  redis:
+    image: redis:alpine
+    container_name: laragon-redis
+    networks:
+      - laravel_network
+
+
+  # The Node.js service for asset compilation.
+  node:
+    image: node:22-alpine
+    container_name: node
+    volumes:
+      # Map the local 'ees' directory to the container
+      - ./:/var/www/html
+    # Set the working directory to the project root for commands
+    working_dir: /var/www/html
+    # Keep the container running so you can execute commands inside it
+    command: tail -f /dev/null
+    networks:
+      - laravel_network
+
+# Defines a custom network for all services
+networks:
+  laravel_network:
+    driver: bridge
+
+# Defines a volume for database data persistence
+volumes:
+  postgres_data:
+    driver: local

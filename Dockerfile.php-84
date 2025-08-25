@@ -1,0 +1,25 @@
+# Use the official PHP 8.4 FPM Alpine image as the base
+FROM php:8.4-fpm-alpine
+
+# Install essential system dependencies and PHP extensions
+RUN apk add --no-cache \
+    git \
+    libzip-dev \
+    libpng-dev \
+    jpeg-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    postgresql-dev \
+    icu-dev && \
+    docker-php-ext-configure gd --with-jpeg --with-freetype && \
+    docker-php-ext-install -j$(nproc) gd pdo_pgsql pdo_sqlite zip intl opcache
+
+# Set a non-root user for security
+RUN addgroup -g 1000 laravel && \
+    adduser -u 1000 -G laravel -s /bin/sh -D laravel
+
+USER laravel
+WORKDIR /var/www/html
+
+# Copy Composer from the official image
+COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
