@@ -7,13 +7,11 @@ services:
       - "80:80"
     volumes:
       - ./ees:/var/www/html/ees
-      # - ./emms:/var/www/html/emms
-      # - ./eems:/var/www/html/eems
-      # Map the Nginx configuration files
+      - ./emms:/var/www/html/emms
+      
       - ./nginx/sites-enabled:/etc/nginx/conf.d
     depends_on:
-      - ees-php
-      # - emms-php
+      - postgres
       # - eems-php
     networks:
       - laravel_network
@@ -28,6 +26,21 @@ services:
       - ./ees:/var/www/html/ees
     networks:
       - laravel_network
+    depends_on:
+      - nginx
+  emms-php:
+    build:
+      context: .
+      dockerfile: Dockerfile.php-84
+    container_name: emms-php
+    volumes:
+      - ./emms:/var/www/html/emms
+    networks:
+      - laravel_network
+    depends_on:
+      - nginx
+    ports:
+      - 8000:8000
 
   # PHP-FPM service for the 'emms' project.
   # emms-php:
@@ -53,7 +66,7 @@ services:
 
   # The PostgreSQL database service.
   postgres:
-    image:  postgis/postgis:17-master #wodby/postgres:$POSTGRES_TAG
+    image:  postgis/postgis:15-master #wodby/postgres:$POSTGRES_TAG
     container_name: laragon-postgres
     command: ["postgres", "-c", "log_statement=all", "-c", "log_destination=stderr"]
     restart: always
@@ -74,6 +87,8 @@ services:
     container_name: laragon-redis
     networks:
       - laravel_network
+    ports:
+      - "6379:6379"
 
 
   # The Node.js service for asset compilation.
@@ -89,6 +104,8 @@ services:
     command: tail -f /dev/null
     networks:
       - laravel_network
+    ports:
+      - "5173:5173"
 
 # Defines a custom network for all services
 networks:

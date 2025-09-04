@@ -1,25 +1,51 @@
-# Use the official PHP 8.4 FPM Alpine image as the base
-FROM php:8.4-fpm-alpine
+# Use the official PHP 8.4 FPM image, which is based on Debian
+FROM php:8.4-fpm
 
-# Install essential system dependencies and PHP extensions
-RUN apk add --no-cache \
+# Set the working directory for the application
+WORKDIR /var/www/html
+
+# Install system dependencies and PHP extensions for a typical Laravel project
+# We use a single RUN command to keep the image size small by leveraging layer caching.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     git \
     libzip-dev \
     libpng-dev \
-    jpeg-dev \
-    libjpeg-turbo-dev \
-    freetype-dev \
-    postgresql-dev \
-    icu-dev && \
-    docker-php-ext-configure gd --with-jpeg --with-freetype && \
-    docker-php-ext-install -j$(nproc) gd pdo_pgsql pdo_sqlite zip intl opcache
+    libjpeg-dev \
+    libfreetype-dev \
+    libpq-dev \
+    libicu-dev \
+    libxml2-dev \
+    libonig-dev \
+    libcurl4-openssl-dev \
+    bison \
+    # Clean up the apt cache to reduce image size
+    && rm -rf /var/lib/apt/lists/* && \
+    # Configure GD with FreeType and JPEG support
+    docker-php-ext-configure gd --with-freetype --with-jpeg && \
+    # Install PHP extensions
+    docker-php-ext-install -j$(nproc) \
+    gd \
+    pdo_pgsql \
+    zip \
+    intl \
+    opcache \
+    sockets \
+    mbstring \
+    xml \
+    curl && \
+    # Install Composer
+    curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-# Set a non-root user for security
-RUN addgroup -g 1000 laravel && \
-    adduser -u 1000 -G laravel -s /bin/sh -D laravel
+# Set a non-root user for security and consistency
+RUN groupadd -g 1000 laravel && \
+    useradd -u 1000 -g laravel -s /bin/bash -m laravel
 
+# Switch to the non-root user
 USER laravel
-WORKDIR /var/www/html
 
-# Copy Composer from the official image
-COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
+# Expose the port PHP-FPM listens on
+EXPOSE 9000
+
+# Start PHP-FPM
+CMD ["php-fpm"]
